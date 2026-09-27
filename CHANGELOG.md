@@ -2,4 +2,5 @@
 
 ## 0.1.0
 
-Initial template sending, delivery status, and framework integration release.
+- Configure a `Sendery` client using `sendery.api-key` and optional `sendery.url`.
+- Inject the client into Spring services to send templates and retrieve delivery status.

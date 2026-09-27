@@ -1,14 +1,16 @@
-# Sendery — Spring Boot integration
+# Sendery for Spring Boot
 
-Send template emails from Spring Boot with the Sendery SDK.
+Inject a Sendery client into your Spring Boot services.
 
-MIT licensed. Repository: https://github.com/sendery-co/sendery-spring-boot
+[Documentation](https://sendery.co/en/docs/spring-boot) · [API reference](https://sendery.co/en/docs/send-email) · [Changelog](CHANGELOG.md)
 
-Documentation: https://sendery.co/en/docs/spring-boot
+## Requirements
+
+Spring Boot 4.1 and Java 17+.
 
 ## Install
 
-```
+```xml
 <dependency>
   <groupId>co.sendery</groupId>
   <artifactId>sendery-spring-boot-starter</artifactId>
@@ -16,47 +18,50 @@ Documentation: https://sendery.co/en/docs/spring-boot
 </dependency>
 ```
 
-## Install
+## Configure your application
 
-Spring Boot 4.1 / Java 17+
+Publish a `welcome` template with `name` and `action_url` variables, and create a [project API key](https://sendery.co/en/docs/authentication). Store it as `SENDERY_API_KEY` on your server. Add this property to `application.properties`.
 
-## Configure properties
-
-Set sendery.api-key=${SENDERY_API_KEY} in application.properties. The starter creates a Sendery bean when the key is configured. sendery.url can override the base URL.
-
-## Inject the client
-
-Inject Sendery into your service and send a published template. Defining your own Sendery bean overrides auto-configuration.
-
-## Mail integration
-
-This starter supplies a template client, not an arbitrary JavaMailSender replacement. Keep your existing mailer for emails that have not been mapped to a Sendery template. Persist the event key and variables for scheduled or queued work.
-
-## Configuration example
-
-```
+```properties
 # application.properties
 sendery.api-key=${SENDERY_API_KEY}
 ```
 
-## Example
+## Send an email
 
-```
+Inject `Sendery` and call this service with the recipient, name, and a unique event key. [Keep those values unchanged on retries](https://sendery.co/en/docs/idempotency). The returned `SendReceipt` contains `id()` and `status()`.
+
+```java
 import co.sendery.Sendery;
+import co.sendery.SendReceipt;
 import org.springframework.stereotype.Service;
 import java.util.Map;
 
 @Service
 public class WelcomeEmails {
     private final Sendery sendery;
-    public WelcomeEmails(Sendery sendery) { this.sendery = sendery; }
-    public void send(String address, String name, String eventId) {
-        sendery.prepare(address, "welcome", Map.of("name", name), null, eventId)
-            .retry(3).send();
+
+    public WelcomeEmails(Sendery sendery) {
+        this.sendery = sendery;
+    }
+
+    public SendReceipt send(String address, String name, String eventKey) {
+        return sendery.prepare(address, "welcome", Map.of(
+            "name", name,
+            "action_url", "https://example.com/start"
+        ), null, eventKey).retry(3).send();
     }
 }
 ```
 
-## Retries and queues
+## Retrieve status and handle errors
 
-Reuse a prepared email for retries. New requests receive new keys; when reconstructing a request in another process, supply the original key and unchanged data. Keep API keys server-side. Framework mailers send Sendery templates, not arbitrary HTML or attachments.
+Use [`sendery.get(id)`](https://sendery.co/en/docs/java) to retrieve status. API failures throw `SenderyException`; inspect `status()`, `code()`, `errors()`, and `retryAfter()`. Calls are blocking. The starter provides the Sendery template client; it does not configure `JavaMailSender`.
+
+## More
+
+See [idempotency and retries](https://sendery.co/en/docs/idempotency) for retry conditions, delays, and reusing a key across attempts.
+
+## License
+
+[MIT](LICENSE).
