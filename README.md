@@ -20,7 +20,7 @@ Spring Boot 4.1 and Java 17+.
 
 ## Configure your application
 
-Publish a `welcome` template with `name` and `action_url` variables, and create a [project API key](https://sendery.co/en/docs/authentication). Store it as `SENDERY_API_KEY` on your server. Add this property to `application.properties`.
+Create a [project API key](https://sendery.co/en/docs/authentication) and store it as `SENDERY_API_KEY`. Add this property to `application.properties`.
 
 ```properties
 # application.properties
@@ -29,7 +29,7 @@ sendery.api-key=${SENDERY_API_KEY}
 
 ## Send an email
 
-Inject `Sendery` and call this service with the recipient, name, and a unique event key. [Keep those values unchanged on retries](https://sendery.co/en/docs/idempotency). The returned `SendReceipt` contains `id()` and `status()`.
+Call this service with the recipient, published template key, variables, and a unique key for the email. [Keep them unchanged on retries](https://sendery.co/en/docs/idempotency). The returned `SendReceipt` contains `id()` and `status()`.
 
 ```java
 import co.sendery.Sendery;
@@ -38,18 +38,39 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 
 @Service
-public class WelcomeEmails {
+public class TemplateEmails {
     private final Sendery sendery;
 
-    public WelcomeEmails(Sendery sendery) {
+    public TemplateEmails(Sendery sendery) {
         this.sendery = sendery;
     }
 
-    public SendReceipt send(String address, String name, String eventKey) {
-        return sendery.prepare(address, "welcome", Map.of(
-            "name", name,
-            "action_url", "https://example.com/start"
-        ), null, eventKey).retry(3).send();
+    public SendReceipt send(String to, String template, Map<String, Object> data, String emailKey) {
+        return sendery.prepare(to, template, data, null, emailKey).retry(3).send();
+    }
+}
+```
+
+## Send a specific version
+
+Choose a [published template version](https://sendery.co/en/docs/send-email#section-5) to keep sending it after newer versions are published. By default, Sendery uses the latest version.
+
+```java
+import co.sendery.Sendery;
+import co.sendery.SendReceipt;
+import org.springframework.stereotype.Service;
+import java.util.Map;
+
+@Service
+public class TemplateEmails {
+    private final Sendery sendery;
+
+    public TemplateEmails(Sendery sendery) {
+        this.sendery = sendery;
+    }
+
+    public SendReceipt send(String to, String template, Map<String, Object> data, String emailKey) {
+        return sendery.prepare(to, template, data, null, emailKey).version(3).send();
     }
 }
 ```
@@ -58,7 +79,7 @@ public class WelcomeEmails {
 
 Pass a list of `Attachment` objects to your injected `Sendery` client. The SDK handles base64 encoding.
 
-Send up to 10 files totaling 5 MB. See the [attachment reference](https://sendery.co/en/docs/send-email#section-5) for supported formats and limits.
+Send up to 10 files totaling 5 MB. See the [attachment reference](https://sendery.co/en/docs/send-email#section-6) for supported formats and limits.
 
 ```java
 import co.sendery.Attachment;
@@ -71,10 +92,10 @@ var file = Files.readAllBytes(Path.of("document.pdf"));
 
 sendery.prepare(
     "alex@example.com",
-    "welcome",
+    "your-template",
     Map.of("name", "Alex", "action_url", "https://example.com/start"),
     null,
-    "welcome-attachment-123",
+    "your-idempotency-key",
     List.of(new Attachment("document.pdf", file, "application/pdf"))
 ).retry().send();
 ```
@@ -85,7 +106,7 @@ Use [`sendery.get(id)`](https://sendery.co/en/docs/java) to retrieve status. API
 
 ## More
 
-See [idempotency and retries](https://sendery.co/en/docs/idempotency) for retry conditions, delays, and reusing a key across attempts.
+Learn how to [retry emails without duplicate sends](https://sendery.co/en/docs/idempotency).
 
 ## License
 

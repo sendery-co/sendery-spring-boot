@@ -12,6 +12,7 @@ class SenderyConfigurationTest {
     @Test void configuresClient() { context.withPropertyValues("sendery.api-key=test").run(app -> {
         assertThat(app).hasSingleBean(Sendery.class);
         var prepared = app.getBean(Sendery.class).prepare("a@example.com", "invoice", java.util.Map.of(), null, "invoice-1", java.util.List.of(new co.sendery.Attachment("invoice.pdf", new byte[] {1}, "application/pdf")));
+        prepared.version(3);
         assertThat(prepared.idempotencyKey()).isEqualTo("invoice-1");
     }); }
     @Test void preservesCustomClient() {
