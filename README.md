@@ -91,9 +91,9 @@ import java.util.Map;
 var file = Files.readAllBytes(Path.of("document.pdf"));
 
 sendery.prepare(
-    "alex@example.com",
+    "steven@example.com",
     "your-template",
-    Map.of("name", "Alex", "action_url", "https://example.com/start"),
+    Map.of("name", "Steven", "action_url", "https://example.com/start"),
     null,
     "your-idempotency-key",
     List.of(new Attachment("document.pdf", file, "application/pdf"))
@@ -120,7 +120,7 @@ Start with [Connecting your application](https://sendery.co/en/docs/connect-even
 
 ```java
 var receipt = sendery.event("account.created", "account", "842",
-    Map.of("email", "alex@example.com", "name", "Alex")
+    Map.of("email", "steven@example.com", "name", "Steven")
 ).retry().send();
 ```
 
