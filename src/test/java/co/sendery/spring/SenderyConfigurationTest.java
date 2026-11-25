@@ -15,6 +15,29 @@ class SenderyConfigurationTest {
         prepared.version(3);
         assertThat(prepared.idempotencyKey()).isEqualTo("invoice-1");
     }); }
+    @Test void configuredStagingCredentialsAreUsedForRenderingAndSending() throws Exception {
+        var requests = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        var server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api/v1/emails", exchange -> {
+            requests.add(exchange.getRequestURI().getPath() + " " + exchange.getRequestHeaders().getFirst("Authorization"));
+            exchange.getRequestBody().readAllBytes();
+            boolean render = exchange.getRequestURI().getPath().endsWith("/render");
+            var body = (render ? "{\"subject\":\"Hello\",\"html\":\"<p>Hello</p>\",\"text\":\"Hello\"}" : "{\"id\":\"mail\",\"status\":\"queued\",\"sandbox_url\":\"https://sendery.test/activity/mail\"}")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(render ? 200 : 202, body.length);
+            exchange.getResponseBody().write(body); exchange.close();
+        });
+        server.start();
+        try {
+            context.withPropertyValues("sendery.api-key=snd_sandbox_staging", "sendery.url=http://127.0.0.1:" + server.getAddress().getPort()).run(app -> {
+                var client = app.getBean(Sendery.class);
+                assertThat(client.render("welcome", java.util.Map.of()).subject()).isEqualTo("Hello");
+                assertThat(client.prepare("a@example.com", "welcome", java.util.Map.of()).send().sandboxUrl()).isEqualTo("https://sendery.test/activity/mail");
+            });
+            assertThat(requests).containsExactly("/api/v1/emails/render Bearer snd_sandbox_staging", "/api/v1/emails Bearer snd_sandbox_staging");
+        } finally { server.stop(0); }
+    }
+
     @Test void preservesCustomClient() {
         var client = new Sendery("custom");
         context.withPropertyValues("sendery.api-key=test").withBean(Sendery.class, () -> client).run(app -> assertThat(app.getBean(Sendery.class)).isSameAs(client));

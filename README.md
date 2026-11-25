@@ -27,6 +27,12 @@ Create a [project API key](https://sendery.co/en/docs/authentication) and store 
 sendery.api-key=${SENDERY_API_KEY}
 ```
 
+## Development and staging
+
+Set `SENDERY_API_KEY` separately for each deployment or Spring profile. Use a **Sandbox** API key for development and staging. Sendery prevents email and workflow delivery from that key, even when the project is live. Production requires a **Live** key and live sending enabled on the project.
+
+The injected `Sendery` client uses `sendery.api-key` and `sendery.url`; it does not replace `JavaMailSender` or read `spring.mail.*`. For rendered content without delivery, use `sendery.render(template, data)` from the [Java SDK](../java/README.md#development-and-staging).
+
 ## Send an email
 
 Call this service with the recipient, published template key, variables, and a unique key for the email. [Keep them unchanged on retries](https://sendery.co/en/docs/idempotency). The returned `SendReceipt` contains `id()` and `status()`.
