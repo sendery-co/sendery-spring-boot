@@ -38,6 +38,27 @@ class SenderyConfigurationTest {
         } finally { server.stop(0); }
     }
 
+    @Test void sendsEventsWithLanguageUsingTheConfiguredClient() throws Exception {
+        var requests = new java.util.concurrent.CopyOnWriteArrayList<String>();
+        var server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/api/v1/events", exchange -> {
+            requests.add(new String(exchange.getRequestBody().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            var body = "{\"id\":\"event\",\"status\":\"accepted\",\"matched_workflows\":1}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(202, body.length);
+            exchange.getResponseBody().write(body); exchange.close();
+        });
+        server.start();
+        try {
+            context.withPropertyValues("sendery.api-key=test", "sendery.url=http://127.0.0.1:" + server.getAddress().getPort()).run(app -> {
+                var receipt = app.getBean(Sendery.class).event("account.created", "account", "42", java.util.Map.of("email", "user@example.com")).language("ja").send();
+                assertThat(receipt.id()).isEqualTo("event");
+            });
+            var payload = com.google.gson.JsonParser.parseString(requests.get(0)).getAsJsonObject();
+            assertThat(payload.get("language").getAsString()).isEqualTo("ja");
+            assertThat(payload.getAsJsonObject("data").get("email").getAsString()).isEqualTo("user@example.com");
+        } finally { server.stop(0); }
+    }
+
     @Test void preservesCustomClient() {
         var client = new Sendery("custom");
         context.withPropertyValues("sendery.api-key=test").withBean(Sendery.class, () -> client).run(app -> assertThat(app.getBean(Sendery.class)).isSameAs(client));
