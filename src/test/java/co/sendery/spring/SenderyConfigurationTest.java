@@ -22,7 +22,7 @@ class SenderyConfigurationTest {
             requests.add(exchange.getRequestURI().getPath() + " " + exchange.getRequestHeaders().getFirst("Authorization"));
             exchange.getRequestBody().readAllBytes();
             boolean render = exchange.getRequestURI().getPath().endsWith("/render");
-            var body = (render ? "{\"subject\":\"Hello\",\"html\":\"<p>Hello</p>\",\"text\":\"Hello\"}" : "{\"id\":\"mail\",\"status\":\"queued\",\"sandbox_url\":\"https://sendery.test/activity/mail\"}")
+            var body = (render ? "{\"subject\":\"Hello\",\"html\":\"<p>Hello</p>\",\"text\":\"Hello\"}" : "{\"id\":\"mail\",\"status\":\"queued\",\"sandbox_url\":\"https://sendery.test/email-history/mail\"}")
                 .getBytes(java.nio.charset.StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(render ? 200 : 202, body.length);
             exchange.getResponseBody().write(body); exchange.close();
@@ -32,7 +32,7 @@ class SenderyConfigurationTest {
             context.withPropertyValues("sendery.api-key=snd_sandbox_staging", "sendery.url=http://127.0.0.1:" + server.getAddress().getPort()).run(app -> {
                 var client = app.getBean(Sendery.class);
                 assertThat(client.render("welcome", java.util.Map.of()).subject()).isEqualTo("Hello");
-                assertThat(client.prepare("a@example.com", "welcome", java.util.Map.of()).send().sandboxUrl()).isEqualTo("https://sendery.test/activity/mail");
+                assertThat(client.prepare("a@example.com", "welcome", java.util.Map.of()).send().sandboxUrl()).isEqualTo("https://sendery.test/email-history/mail");
             });
             assertThat(requests).containsExactly("/api/v1/emails/render Bearer snd_sandbox_staging", "/api/v1/emails Bearer snd_sandbox_staging");
         } finally { server.stop(0); }
